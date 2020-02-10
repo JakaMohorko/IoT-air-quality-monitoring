@@ -60,7 +60,7 @@ static int _filter(int m)
 float read_dust_sensor(void)
 {
     iled_m = 1;
-    wait_us(280);
+    wait_us(280); // leave as wait_us as fails otherwise
 		voltage = vout_m.read() * 3300 * 11;
 		iled_m = 0;
 		
