@@ -1,0 +1,58 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "CO",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "NO2",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "NH3",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "CH4",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "H2",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ETHANOL",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "PROPANE",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "DUST",
+    "type": "FLOAT"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "eCO2",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "TVOC",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "TIME",
+    "type": "DATETIME"
+  }
+]
+
