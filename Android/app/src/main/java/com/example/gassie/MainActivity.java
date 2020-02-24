@@ -44,6 +44,8 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import androidx.annotation.NonNull;
 
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 public class MainActivity extends AppCompatActivity
         implements AdapterView.OnItemSelectedListener, AdapterView.OnClickListener {
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity
     private Button mClickButton;
     private Spinner spinner;
     private TextInputLayout mTextView;
+    private Boolean authenticated = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -166,10 +169,40 @@ public class MainActivity extends AppCompatActivity
         Toast.makeText(context, "Sent a message! Message was: " + message, Toast.LENGTH_LONG).show(); // Replace context with your context instance.
     }
 
+
+
+
+    private void printSentData(String[] values){
+         // DEBUG
+         for(int i = 0; i < values.length; i+=2){
+            System.out.format("%s %s\n", values[i], values[i+1]);
+         }
+    }
+
     private void onMessageReceived(String message) {
         // We received a message! Handle it here.
-        Toast.makeText(context, "Received a message! Message was: " + message, Toast.LENGTH_LONG).show(); // Replace context with your context instance.
+        Toast.makeText(context, "Received a message! Message was: " + message, Toast.LENGTH_LONG).show(); // Replace context with your context instance.1
 
+        // split data
+        String[] values = message.split(" ");
+
+        printSentData(values);
+
+        //json schema
+        String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": %s, \"Location_tag\": %s}";
+
+        // get timestamp
+        String timeStamp = new SimpleDateFormat("yyyy-MM-DD HH:mm:ss").format(new Date());
+        System.out.println("Time: " + timeStamp);
+
+        // get location tag
+
+        // get geolocation data
+
+        String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], "0001-01-01 00:00:00", "AT-1");
+        if (authenticated){
+            sendDataToBigQuery(json_data, timeStamp);
+        }
 
     }
 
@@ -213,7 +246,7 @@ public class MainActivity extends AppCompatActivity
                             // Sign in success, update UI with the signed-in user's information
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-                            testFirebaseUpload();
+                            authenticated = true;
                         } else {
                             // If sign in fails, display a message to the user.
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
@@ -222,17 +255,13 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
-    private void testFirebaseUpload(){
+    private void sendDataToBigQuery(String jsonData, String timestamp){
         FirebaseStorage storage = FirebaseStorage.getInstance("gs://gassie-files-source-1581353521/");
         StorageReference storageRef = storage.getReference();
 
-        StorageReference dataRef = storageRef.child("data4.json");
+        // may fail due to spaces in file name
+        StorageReference dataRef = storageRef.child("data" + timestamp + ".json");
 
-        String jsonData = "{\"id\":\"4\",\"first_name\":\"May\",\"last_name\":\"Doe\",\"dob\":\"1968-01-22\"," +
-                "\"addresses\":[{\"status\":\"current\",\"address\":\"123 First Avenue\",\"city\":\"Seattle\",\"" +
-                "state\":\"WA\",\"zip\":\"11111\",\"numberOfYears\":\"1\"},{\"status\":\"previous\",\"address\":\"" +
-                "456 Main Street\",\"city\":\"Portland\",\"state\":\"OR\",\"zip\":\"22222\",\"numberOfYears\":\"5\"" +
-                "}]}\n";
 
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 

@@ -61,30 +61,37 @@ int main(){
         // pc.printf("dust concentration: %4.1f ug/m3z\r\n", dust_val);
         // pc.printf("\r\n");
 
-        // === READ VALUES === 
-        float dust_val = read_dust_sensor();
-        // read mox
-        mox.IAQmeasure();
-        int tvoc    = mox.TVOC;
-        int eco2    = mox.eCO2;
+        // === READ VALUES ===
         // read gases from MiCS6814_GasSensor
         float nh3   = sensor.getGas(NH3);
         float co    = sensor.getGas(CO);
         float no2   = sensor.getGas(NO2);
         float methane = sensor.getGas(CH4);
+        float h2 = sensor.getGas(H2);
+        float ethanol = sensor.getGas(C2H5OH);
+        float propane = sensor.getGas(C3H8);
+        float butane = sensor.getGas(C4H10); 
+        // read dust sensor
+        float dust_val = read_dust_sensor();
+        // read mox
+        mox.IAQmeasure();
+        int tvoc    = mox.TVOC;
+        int eco2    = mox.eCO2;
 
-        // debug
-        pc.printf("\r\nDust: %f\r\n", dust_val);
-        pc.printf("TVOC: %d, eCO2: %d\r\n", tvoc, eco2);
-        pc.printf("NH3: %.2f ppm, CO: %.2f ppm, NO2: %.2f ppm, CH4: %2.f\r\n", nh3, co, no2, methane); // not transfering all data
+        // debug             
+        pc.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
+                   co, no2, nh3, methane, h2, ethanol, propane, dust_val, eco2, tvoc); // not transfering all data
 
-        // send data over bluetooth serial
-        blue.printf("\r\nDust: %f\r\n", dust_val);
-        blue.printf("TVOC: %d, eCO2: %d\r\n", tvoc, eco2);
-        blue.printf("NH3: %.2f ppm, CO: %.2f ppm, NO2: %.2f ppm, CH4: %2.f\r\n", nh3, co, no2, methane); // not transfering all data
-
+        // pc.printf("CO: %.2f ppm, NO2: %.2f ppm, NH3: %.2f ppm, CH4: %.2f ppm, H2: %.2f ppm, Ethanol: %.2f ppm, Propane: %.2f ppm, Butane: %.2f ppm, Dust: %fμg/m3, eCO2: %dppm, TVOC: %dppb\r\n", 
+        //            co, no2, nh3, methane, h2, ethanol, propane, butane, dust_val, eco2, tvoc); // not transfering all data
+      
+        // blue.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Butane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
+        //            co, no2, nh3, methane, h2, ethanol, propane, butane, dust_val, eco2, tvoc); // not transfering all data
+        
+        blue.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
+                   co, no2, nh3, methane, h2, ethanol, propane, dust_val, eco2, tvoc); // not transfering all data
 
         // how frequently to send data
-        ThisThread::sleep_for(1000);
+        ThisThread::sleep_for(10000);
     }
 }
