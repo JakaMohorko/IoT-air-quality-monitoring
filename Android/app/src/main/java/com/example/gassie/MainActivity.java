@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int RC_SIGN_IN = 9001;
     private static final String TAG = "MainActivity";
     private FirebaseAuth mAuth;
-
+    private Boolean authenticated = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -147,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
     private void printSentData(String[] values){
          // DEBUG
          for(int i = 0; i < values.length; i+=2){
-            System.out.format("%s: %s\n", values[i], values[i+1]);
+            System.out.format("%s %s\n", values[i], values[i+1]);
          }
     }
 
@@ -172,8 +172,10 @@ public class MainActivity extends AppCompatActivity {
         // get geolocation data
 
         String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], "0001-01-01 00:00:00", "AT-1");
+        if (authenticated){
+            sendDataToBigQuery(json_data, timeStamp);
+        }
 
-        sendDataToBigQuery(json_data, timeStamp);
     }
 
     private void onError(Throwable error) {
@@ -216,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
                             // Sign in success, update UI with the signed-in user's information
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-                            //testFirebaseUpload();
+                            authenticated = true;
                         } else {
                             // If sign in fails, display a message to the user.
                             Log.w(TAG, "signInWithCredential:failure", task.getException());

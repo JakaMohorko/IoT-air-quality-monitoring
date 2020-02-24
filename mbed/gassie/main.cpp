@@ -71,21 +71,24 @@ int main(){
         float ethanol = sensor.getGas(C2H5OH);
         float propane = sensor.getGas(C3H8);
         float butane = sensor.getGas(C4H10); 
-
+        // read dust sensor
         float dust_val = read_dust_sensor();
         // read mox
         mox.IAQmeasure();
         int tvoc    = mox.TVOC;
         int eco2    = mox.eCO2;
 
-        // debug
-        pc.printf("CO: %.2f ppm, NO2: %.2f ppm, NH3: %.2f ppm, CH4: %.2f ppm, H2: %.2f ppm, Ethanol: %.2f ppm, Propane: %.2f ppm, Butane: %.2f ppm, Dust: %fμg/m3, eCO2: %dppm, TVOC: %dppb\r\n", 
-                   co, no2, nh3, methane, h2, ethanol, propane, butane, dust_val, eco2, tvoc); // not transfering all data
-                   
+        // debug             
+        pc.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
+                   co, no2, nh3, methane, h2, ethanol, propane, dust_val, eco2, tvoc); // not transfering all data
+
+        // pc.printf("CO: %.2f ppm, NO2: %.2f ppm, NH3: %.2f ppm, CH4: %.2f ppm, H2: %.2f ppm, Ethanol: %.2f ppm, Propane: %.2f ppm, Butane: %.2f ppm, Dust: %fμg/m3, eCO2: %dppm, TVOC: %dppb\r\n", 
+        //            co, no2, nh3, methane, h2, ethanol, propane, butane, dust_val, eco2, tvoc); // not transfering all data
+      
         // blue.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Butane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
         //            co, no2, nh3, methane, h2, ethanol, propane, butane, dust_val, eco2, tvoc); // not transfering all data
         
-        blue.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Dust: %.2f eCO2: % d TVOC: %d\r\n", 
+        blue.printf("CO: %.2f NO2: %.2f NH3: %.2f CH4: %.2f H2: %.2f Ethanol: %.2f Propane: %.2f Dust: %.2f eCO2: %d TVOC: %d\r\n", 
                    co, no2, nh3, methane, h2, ethanol, propane, dust_val, eco2, tvoc); // not transfering all data
 
         // how frequently to send data
