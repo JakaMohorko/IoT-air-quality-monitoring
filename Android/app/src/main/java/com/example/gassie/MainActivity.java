@@ -48,7 +48,7 @@ import java.util.Date;
 import java.text.SimpleDateFormat;
 
 public class MainActivity extends AppCompatActivity
-        implements AdapterView.OnItemSelectedListener, AdapterView.OnClickListener {
+        implements AdapterView.OnClickListener {
 
     private BluetoothManager bluetoothManager;
     private String mac;
@@ -189,17 +189,19 @@ public class MainActivity extends AppCompatActivity
         printSentData(values);
 
         //json schema
-        String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": %s, \"Location_tag\": %s}";
+        String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": \"%s\", \"Location_tag\": \"%s\"}";
 
         // get timestamp
-        String timeStamp = new SimpleDateFormat("yyyy-MM-DD HH:mm:ss").format(new Date());
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
         System.out.println("Time: " + timeStamp);
 
         // get location tag
-
+        String location_tag = spinner.getSelectedItem().toString();
+        location_tag = location_tag.replaceAll(" ", "-");
         // get geolocation data
 
-        String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], "0001-01-01 00:00:00", "AT-1");
+        String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], timeStamp, location_tag);
+        System.out.println("Schema: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp);
         }
@@ -280,15 +282,6 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    public void onItemSelected(AdapterView<?> parent, View view,
-                               int pos, long id) {
-        // An item was selected. You can retrieve the selected item using
-        // parent.getItemAtPosition(pos)
-    }
-
-    public void onNothingSelected(AdapterView<?> parent) {
-        // Another interface callback
-    }
 
     public void onClick(View v) {
         String loc = mTextView.getEditText().getText().toString();
@@ -300,6 +293,7 @@ public class MainActivity extends AppCompatActivity
         newAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(newAdapter);
 
+        mTextView.getEditText().setText("");
     }
 
 

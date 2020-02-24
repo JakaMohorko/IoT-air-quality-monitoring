@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="appleton_floors">
-        <item>AT -1</item>
-        <item>AT 0</item>
-        <item>AT 1</item>
-        <item>AT 2</item>
-        <item>AT 3</item>
-        <item>AT 4</item>
-        <item>AT 5</item>
-        <item>AT 6</item>
-        <item>AT 7</item>
-        <item>AT 8</item>
-        <item>AT 9</item>
+        <item>None</item>
+        <item>AT(-1)</item>
+        <item>AT(0)</item>
+        <item>AT(1)</item>
+        <item>AT(2)</item>
+        <item>AT(3)</item>
+        <item>AT(4)</item>
+        <item>AT(5)</item>
+        <item>AT(6)</item>
+        <item>AT(7)</item>
+        <item>AT(8)</item>
+        <item>AT(9)</item>
     </string-array>
 </resources>
