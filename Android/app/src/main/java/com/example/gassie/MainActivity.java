@@ -4,6 +4,12 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.content.Context;
 import android.bluetooth.BluetoothDevice;
@@ -11,7 +17,9 @@ import android.util.Log;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -20,7 +28,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -29,14 +37,7 @@ import com.google.firebase.auth.GoogleAuthProvider;
 import com.harrysoft.androidbluetoothserial.*;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.storage.FileDownloadTask;
 import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.ListResult;
-import com.google.firebase.storage.OnPausedListener;
-import com.google.firebase.storage.OnProgressListener;
-import com.google.firebase.storage.StorageException;
-import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -46,7 +47,8 @@ import androidx.annotation.NonNull;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements AdapterView.OnClickListener {
 
     private BluetoothManager bluetoothManager;
     private String mac;
@@ -57,11 +59,39 @@ public class MainActivity extends AppCompatActivity {
     private static final int RC_SIGN_IN = 9001;
     private static final String TAG = "MainActivity";
     private FirebaseAuth mAuth;
+    private ArrayList<String> drop = new ArrayList<>();
+    private Button mClickButton;
+    private Spinner spinner;
+    private TextInputLayout mTextView;
     private Boolean authenticated = false;
+
+    private float co = 0;
+    private float no2 = 0;
+    private float nh3 = 0;
+    private float ch4 = 0;
+    private float h2 = 0;
+    private float ethanol = 0;
+    private float propane = 0;
+    private float dust = 0;
+    private int eco2 = 0;
+    private int tvoc = 0;
+
+    private int aqico = 0;
+    private int aqino2 = 0;
+    private int aqidust = 0;
+
+    private int sensor_counter = 0;
+    private int aqi_counter = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mClickButton = findViewById(R.id.button);
+        spinner = findViewById(R.id.spinner);
+        mTextView = findViewById(R.id.textInputLayout);
+
         context = getApplicationContext();
 
         gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -98,6 +128,22 @@ public class MainActivity extends AppCompatActivity {
 
         connectDevice(mac);
 
+
+        // Create an ArrayAdapter using the string array and a default spinner layout
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+                R.array.appleton_floors, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        spinner.setAdapter(adapter);
+
+        for (int x = 0; x < adapter.getCount(); x++){
+            String z = (String) adapter.getItem(x);
+            drop.add(z);
+        }
+
+
+        mClickButton.setOnClickListener(this);
     }
     @Override
     public void onStart() {
@@ -160,22 +206,105 @@ public class MainActivity extends AppCompatActivity {
 
         printSentData(values);
 
+        co += Float.parseFloat(values[1]);
+        no2 += Float.parseFloat(values[3]);
+        nh3 += Float.parseFloat(values[5]);
+        ch4 += Float.parseFloat(values[7]);
+        h2 += Float.parseFloat(values[9]);
+        ethanol += Float.parseFloat(values[11]);
+        propane += Float.parseFloat(values[13]);
+        dust +=  Float.parseFloat(values[15]);
+        eco2 += Float.parseFloat(values[17]);
+        tvoc += Float.parseFloat(values[19]);
+
+        sensor_counter++;
+
+        if (sensor_counter == 12){
+            sendToSensorReadings();
+        }
+    }
+
+    private void sendToSensorReadings(){
         //json schema
-        String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": %s, \"Location_tag\": %s}";
+        String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": \"%s\", \"Location_tag\": \"%s\"}";
 
         // get timestamp
-        String timeStamp = new SimpleDateFormat("yyyy-MM-DD HH:mm:ss").format(new Date());
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
         System.out.println("Time: " + timeStamp);
 
         // get location tag
+        String location_tag = spinner.getSelectedItem().toString();
+        location_tag = location_tag.replaceAll(" ", "-");
 
-        // get geolocation data
+        co /= 12;
+        no2 /= 12; no2 *= 1000;
+        nh3 /= 12;
+        ch4 /= 12;
+        h2 /= 12;
+        ethanol /= 12;
+        propane /= 12;
+        dust /= 12;
+        eco2 /= 12;
+        tvoc /= 12;
 
-        String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], "0001-01-01 00:00:00", "AT-1");
+        // TODO: do AQI calculations
+
+        sensor_counter = 0;
+
+        String json_data = String.format(json_schema, co, no2, nh3, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
+        System.out.println("Schema: " + json_data);
         if (authenticated){
-            sendDataToBigQuery(json_data, timeStamp);
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/");
         }
 
+        aqi_counter++;
+        if (aqi_counter == 5){
+            sendToAQIReadings();
+        }
+
+        co = 0;
+        no2 = 0;
+        nh3 = 0;
+        ch4 = 0;
+        h2 = 0;
+        ethanol = 0;
+        propane = 0;
+        dust = 0;
+        eco2 = 0;
+        tvoc = 0;
+
+    }
+
+    private void sendToAQIReadings(){
+        // Set json schema
+        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\"}";
+
+        // get timestamp
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        System.out.println("Time: " + timeStamp);
+
+        // get location tag
+        String location_tag = spinner.getSelectedItem().toString();
+        location_tag = location_tag.replaceAll(" ", "-");
+
+        aqico /= 5;
+        aqidust /= 5;
+        aqino2 /= 5;
+
+        int aqi = Integer.max(aqico, aqidust);
+        aqi = Integer.max(aqi, aqino2);
+
+        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp);
+        System.out.println("Schema: " + json_data);
+        if (authenticated){
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2");
+        }
+
+        aqi_counter = 0;
+
+        aqico = 0;
+        aqidust = 0;
+        aqino2 = 0;
     }
 
     private void onError(Throwable error) {
@@ -192,7 +321,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         // Result returned from launching the Intent from GoogleSignInApi.getSignInIntent(...);
-        System.out.println("request code: " + requestCode);
+        Log.w(TAG, "request code:" + requestCode);
         if (requestCode == RC_SIGN_IN) {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try {
@@ -222,21 +351,18 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             // If sign in fails, display a message to the user.
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
-                          //  Snackbar.make(findViewById(R.id.main_layout), "Authentication Failed.", Snackbar.LENGTH_SHORT).show();
-
                         }
-
-                        // ...
                     }
                 });
     }
 
-    private void sendDataToBigQuery(String jsonData, String timestamp){
-        FirebaseStorage storage = FirebaseStorage.getInstance("gs://gassie-files-source-1581353521/");
+    private void sendDataToBigQuery(String jsonData, String timestamp, String bucket){
+        FirebaseStorage storage = FirebaseStorage.getInstance(bucket);
         StorageReference storageRef = storage.getReference();
 
         // may fail due to spaces in file name
         StorageReference dataRef = storageRef.child("data" + timestamp + ".json");
+
 
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
 
@@ -254,4 +380,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+
+    public void onClick(View v) {
+        String loc = mTextView.getEditText().getText().toString();
+
+        drop.add(loc);
+
+        ArrayAdapter<String> newAdapter = new ArrayAdapter<String> (this, android.R.layout.simple_spinner_item, drop);
+
+        newAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(newAdapter);
+
+        mTextView.getEditText().setText("");
+    }
+
+
 }
