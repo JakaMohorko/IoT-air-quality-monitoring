@@ -65,6 +65,24 @@ public class MainActivity extends AppCompatActivity
     private TextInputLayout mTextView;
     private Boolean authenticated = false;
 
+    private float co = 0;
+    private float no2 = 0;
+    private float nh3 = 0;
+    private float ch4 = 0;
+    private float h2 = 0;
+    private float ethanol = 0;
+    private float propane = 0;
+    private float dust = 0;
+    private int eco2 = 0;
+    private int tvoc = 0;
+
+    private int aqico = 0;
+    private int aqino2 = 0;
+    private int aqidust = 0;
+
+    private int sensor_counter = 0;
+    private int aqi_counter = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -188,6 +206,25 @@ public class MainActivity extends AppCompatActivity
 
         printSentData(values);
 
+        co += Float.parseFloat(values[1]);
+        no2 += Float.parseFloat(values[3]);
+        nh3 += Float.parseFloat(values[5]);
+        ch4 += Float.parseFloat(values[7]);
+        h2 += Float.parseFloat(values[9]);
+        ethanol += Float.parseFloat(values[11]);
+        propane += Float.parseFloat(values[13]);
+        dust +=  Float.parseFloat(values[15]);
+        eco2 += Float.parseFloat(values[17]);
+        tvoc += Float.parseFloat(values[19]);
+
+        sensor_counter++;
+
+        if (sensor_counter == 12){
+            sendToSensorReadings();
+        }
+    }
+
+    private void sendToSensorReadings(){
         //json schema
         String json_schema = "{\"CO\": %s,\"NO2\": %s,\"NH3\": %s,\"CH4\": %s,\"H2\": %s,\"ETHANOL\": %s,\"PROPANE\": %s,\"DUST\": %s,\"eCO2\": %s,\"TVOC\": %s,\"TIME\": \"%s\", \"Location_tag\": \"%s\"}";
 
@@ -198,14 +235,73 @@ public class MainActivity extends AppCompatActivity
         // get location tag
         String location_tag = spinner.getSelectedItem().toString();
         location_tag = location_tag.replaceAll(" ", "-");
-        // get geolocation data
 
-        String json_data = String.format(json_schema, values[1], values[3], values[5], values[7], values[9], values[11], values[13], values[15], values[17], values[19], timeStamp, location_tag);
+        co /= 12;
+        no2 /= 12;
+        nh3 /= 12;
+        ch4 /= 12;
+        h2 /= 12;
+        ethanol /= 12;
+        propane /= 12;
+        dust /= 12;
+        eco2 /= 12;
+        tvoc /= 12;
+
+        // TODO: do AQI calculations
+
+        sensor_counter = 0;
+
+        String json_data = String.format(json_schema, co, no2, nh3, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
         System.out.println("Schema: " + json_data);
         if (authenticated){
-            sendDataToBigQuery(json_data, timeStamp);
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/");
         }
 
+        aqi_counter++;
+        if (aqi_counter == 5){
+            sendToAQIReadings();
+        }
+
+        co = 0;
+        no2 = 0;
+        nh3 = 0;
+        ch4 = 0;
+        h2 = 0;
+        ethanol = 0;
+        propane = 0;
+        dust = 0;
+        eco2 = 0;
+        tvoc = 0;
+
+    }
+
+    private void sendToAQIReadings(){
+        // Set json schema
+        String json_schema = "{\"COAQI\": %s,\"NO2AQI\": %s,\"DUSTAQI\": %s,\"TIME\": \"%s\", \"Location_tag\": \"%s\"}";
+
+        // get timestamp
+        String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        System.out.println("Time: " + timeStamp);
+
+        // get location tag
+        String location_tag = spinner.getSelectedItem().toString();
+        location_tag = location_tag.replaceAll(" ", "-");
+
+        aqico /= 5;
+        aqidust /= 5;
+        aqino2 /= 5;
+
+        String json_data = String.format(json_schema, aqico, aqino2, aqidust, timeStamp, location_tag);
+        System.out.println("Schema: " + json_data);
+        if (authenticated){
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2");
+        }
+
+        aqi_counter = 0;
+
+        aqico = 0;
+        aqidust = 0;
+        aqino2 = 0;
     }
 
     private void onError(Throwable error) {
@@ -257,8 +353,8 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
-    private void sendDataToBigQuery(String jsonData, String timestamp){
-        FirebaseStorage storage = FirebaseStorage.getInstance("gs://gassie-files-source-1581353521/");
+    private void sendDataToBigQuery(String jsonData, String timestamp, String bucket){
+        FirebaseStorage storage = FirebaseStorage.getInstance(bucket);
         StorageReference storageRef = storage.getReference();
 
         // may fail due to spaces in file name
