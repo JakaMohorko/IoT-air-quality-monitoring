@@ -4,6 +4,10 @@
 #include "Adafruit_SGP30.h"
 #include "dust_sensor.h"
 
+// encrypt
+#include "authcrypt.h"  
+#include "mbedtls/platform.h"
+
 // ========== serial connection setups ===========
 Serial pc(USBTX, USBRX);
 
@@ -38,6 +42,20 @@ int main(){
 
     // bluetooth setup
     blue.attach(&callback_ex);
+
+    int ret;
+    Authcrypt *authcrypt = new Authcrypt();
+
+    if ((ret = mbedtls_platform_setup(NULL)) != 0) {
+        printf("Platform initialization failed with error %d\n", ret);
+        return MBEDTLS_EXIT_FAILURE;
+    }
+
+    // test encryption on device
+    if ((ret = authcrypt->run("DATA TO ENCRYPT!")) != 0) {
+        mbedtls_printf("Example failed with error %d\n", ret);
+        exit_code = MBEDTLS_EXIT_FAILURE;
+    }
 
     // mox setup
     mox.begin();
