@@ -237,7 +237,7 @@ public class MainActivity extends AppCompatActivity
         location_tag = location_tag.replaceAll(" ", "-");
 
         co /= 12;
-        no2 /= 12;
+        no2 /= 12; no2 *= 1000;
         nh3 /= 12;
         ch4 /= 12;
         h2 /= 12;
@@ -277,7 +277,7 @@ public class MainActivity extends AppCompatActivity
 
     private void sendToAQIReadings(){
         // Set json schema
-        String json_schema = "{\"COAQI\": %s,\"NO2AQI\": %s,\"DUSTAQI\": %s,\"TIME\": \"%s\", \"Location_tag\": \"%s\"}";
+        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\"}";
 
         // get timestamp
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
@@ -291,7 +291,10 @@ public class MainActivity extends AppCompatActivity
         aqidust /= 5;
         aqino2 /= 5;
 
-        String json_data = String.format(json_schema, aqico, aqino2, aqidust, timeStamp, location_tag);
+        int aqi = Integer.max(aqico, aqidust);
+        aqi = Integer.max(aqi, aqino2);
+
+        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp);
         System.out.println("Schema: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2");
