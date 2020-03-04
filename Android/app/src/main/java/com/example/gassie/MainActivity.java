@@ -2,7 +2,12 @@ package com.example.gassie;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -20,6 +25,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.lang.Math;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -35,13 +41,16 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.harrysoft.androidbluetoothserial.*;
+
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
+
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+
 import androidx.annotation.NonNull;
 
 import java.util.Date;
@@ -83,6 +92,16 @@ public class MainActivity extends AppCompatActivity
     private int sensor_counter = 0;
     private int aqi_counter = 0;
 
+    private float[] aqi_breakpoints_co = new float[]{-0.1f, 4.4f, 9.4f, 12.4f, 15.4f, 30.4f, 40.4f, 50.4f};
+    private int[] aqi_breakpoints_no2 = new int[]{-1, 53, 100, 360, 649, 1249, 1649, 2049};
+    private float[] aqi_breakpoints_dust = new float[]{-0.1f, 12.0f, 35.4f, 55.4f, 150.4f, 250.4f, 350.4f, 500.4f};
+    private int[] aqi_values = new int[]{-1, 50, 100, 150, 200, 300, 400, 500};
+
+    private LocationManager mLocationManager;
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    private String longitude = "";
+    private String latitude = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -111,17 +130,19 @@ public class MainActivity extends AppCompatActivity
             finish();
         }
 
+        boolean found = false;
         Collection<BluetoothDevice> pairedDevices = bluetoothManager.getPairedDevicesList();
         for (BluetoothDevice device : pairedDevices) {
             Log.d("My Bluetooth App", "Device name: " + device.getName());
             Log.d("My Bluetooth App", "Device MAC Address: " + device.getAddress());
 
-            if (device.getName().equals("HC-06")){
+            if (device.getName().equals("HC-06")) {
                 mac = device.getAddress();
+                found = true;
             }
         }
 
-        if (mac.equals("")){
+        if (!found) {
             Log.d("Error:", "Device not found");
             finish();
         }
@@ -137,10 +158,17 @@ public class MainActivity extends AppCompatActivity
         // Apply the adapter to the spinner
         spinner.setAdapter(adapter);
 
-        for (int x = 0; x < adapter.getCount(); x++){
+        for (int x = 0; x < adapter.getCount(); x++) {
             String z = (String) adapter.getItem(x);
             drop.add(z);
         }
+
+        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            this.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
+        }
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10 * 1000, 0, mLocationListener);
 
 
         mClickButton.setOnClickListener(this);
@@ -236,31 +264,75 @@ public class MainActivity extends AppCompatActivity
         String location_tag = spinner.getSelectedItem().toString();
         location_tag = location_tag.replaceAll(" ", "-");
 
-        co /= 12;
-        no2 /= 12; no2 *= 1000;
-        nh3 /= 12;
-        ch4 /= 12;
-        h2 /= 12;
-        ethanol /= 12;
-        propane /= 12;
-        dust /= 12;
+        co /= 12; co = Math.round(co * 100.0f) / 100.0f;
+        no2 /= 12; no2 *= 1000; no2 = Math.round(no2 * 100.0f) / 100.0f;
+        nh3 /= 12; nh3 = Math.round(nh3 * 100.0f) / 100.0f;
+        ch4 /= 12; ch4 = Math.round(ch4 * 100.0f) / 100.0f;
+        h2 /= 12; h2 = Math.round(h2 * 100.0f) / 100.0f;
+        ethanol /= 12; ethanol = Math.round(ethanol * 100.0f) / 100.0f;
+        propane /= 12; propane = Math.round(propane * 100.0f) / 100.0f;
+        dust /= 12; dust = Math.round(dust * 100.0f) / 100.0f;
         eco2 /= 12;
         tvoc /= 12;
 
-        // TODO: do AQI calculations
+        int index = 7;
+
+        for (int x = 1; x <= aqi_breakpoints_co.length; x++){
+            if(co <= aqi_breakpoints_co[x]){
+                index = x;
+                break;
+            }
+        }
+
+        float breakpointf_lo = aqi_breakpoints_co[index-1] + 0.1f;
+        float breakpointf_hi = aqi_breakpoints_co[index];
+        int aqi_lo = aqi_values[index-1] + 1;
+        int aqi_hi = aqi_values[index];
+
+        aqico += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+
+        index = 7;
+
+        for (int x = 1; x <= aqi_breakpoints_dust.length; x++){
+            if(co <= aqi_breakpoints_dust[x]){
+                index = x;
+                break;
+            }
+        }
+
+        breakpointf_lo = aqi_breakpoints_co[index-1] + 0.1f;
+        breakpointf_hi = aqi_breakpoints_co[index];
+        aqi_lo = aqi_values[index-1] + 1;
+        aqi_hi = aqi_values[index];
+
+        aqidust += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+
+        index = 7;
+        for (int x = 1; x <= aqi_breakpoints_no2.length; x++){
+            if(co <= aqi_breakpoints_no2[x]){
+                index = x;
+                break;
+            }
+        }
+
+        int breakpoint_lo = aqi_breakpoints_no2[index-1] + 1;
+        int breakpoint_hi = aqi_breakpoints_no2[index];
+        aqi_lo = aqi_values[index-1] + 1;
+        aqi_hi = aqi_values[index];
+
+        aqino2 += Math.round((aqi_hi - aqi_lo) / (breakpoint_hi-breakpoint_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpoint_lo) + aqi_lo);
 
         sensor_counter = 0;
 
-        String json_data = String.format(json_schema, co, no2, nh3, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
+        String json_data = String.format(json_schema, co, no2, nh3, ch4, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
         System.out.println("Schema: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/");
         }
 
         aqi_counter++;
-        if (aqi_counter == 5){
-            sendToAQIReadings();
-        }
+        sendToAQIReadings();
+
 
         co = 0;
         no2 = 0;
@@ -277,7 +349,7 @@ public class MainActivity extends AppCompatActivity
 
     private void sendToAQIReadings(){
         // Set json schema
-        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\"}";
+        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\", \"longitude\": %s,\"latitude\": %s}";
 
         // get timestamp
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
@@ -294,7 +366,7 @@ public class MainActivity extends AppCompatActivity
         int aqi = Integer.max(aqico, aqidust);
         aqi = Integer.max(aqi, aqino2);
 
-        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp);
+        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp, longitude, latitude);
         System.out.println("Schema: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2");
@@ -394,6 +466,26 @@ public class MainActivity extends AppCompatActivity
 
         mTextView.getEditText().setText("");
     }
+
+    private final LocationListener mLocationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(final Location location) {
+            longitude = Double.toString(location.getLongitude());
+            latitude = Double.toString(location.getLatitude());
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+        }
+    };
 
 
 }
