@@ -6,9 +6,9 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
+
 import android.os.Bundle;
+import android.os.Looper;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -32,6 +32,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputLayout;
@@ -70,6 +75,7 @@ public class MainActivity extends AppCompatActivity
     private FirebaseAuth mAuth;
     private ArrayList<String> drop = new ArrayList<>();
     private Button mClickButton;
+    private Button mClickButton2;
     private Spinner spinner;
     private TextInputLayout mTextView;
     private Boolean authenticated = false;
@@ -96,11 +102,15 @@ public class MainActivity extends AppCompatActivity
     private int[] aqi_breakpoints_no2 = new int[]{-1, 53, 100, 360, 649, 1249, 1649, 2049};
     private float[] aqi_breakpoints_dust = new float[]{-0.1f, 12.0f, 35.4f, 55.4f, 150.4f, 250.4f, 350.4f, 500.4f};
     private int[] aqi_values = new int[]{-1, 50, 100, 150, 200, 300, 400, 500};
+    private FusedLocationProviderClient fusedLocationClient;
 
-    private LocationManager mLocationManager;
+
+    private LocationCallback locationCallback;
+    private LocationRequest locationRequest;
+    private boolean requestingLocationUpdates = false;
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-    private String longitude = "";
-    private String latitude = "";
+    private float longitude = 0.0f;
+    private float latitude = 0.0f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +118,7 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         mClickButton = findViewById(R.id.button);
+        mClickButton2 = findViewById(R.id.button2);
         spinner = findViewById(R.id.spinner);
         mTextView = findViewById(R.id.textInputLayout);
 
@@ -163,15 +174,44 @@ public class MainActivity extends AppCompatActivity
             drop.add(z);
         }
 
-        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             this.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
         }
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10 * 1000, 0, mLocationListener);
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        // Got last known location. In some rare situations this can be null.
+                        if (location != null) {
+                            latitude = (float) location.getLatitude();
+                            longitude = (float) location.getLongitude();
+                        }
+                    }
+                });
+
+        createLocationRequest();
+
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                Location location = locationResult.getLastLocation();
+                latitude = (float)location.getLatitude();
+                longitude = (float)location.getLongitude();
+            };
+        };
 
 
         mClickButton.setOnClickListener(this);
+        mClickButton2.setOnClickListener(this);
     }
     @Override
     public void onStart() {
@@ -190,6 +230,21 @@ public class MainActivity extends AppCompatActivity
         FirebaseAuth.getInstance().signOut();
 
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (requestingLocationUpdates) {
+            startLocationUpdates();
+        }
+    }
+
+    private void startLocationUpdates() {
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+                locationCallback,
+                Looper.getMainLooper());
+    }
+
     private void connectDevice(String mac) {
         bluetoothManager.openSerialDevice(mac)
                 .subscribeOn(Schedulers.io())
@@ -327,11 +382,15 @@ public class MainActivity extends AppCompatActivity
         String json_data = String.format(json_schema, co, no2, nh3, ch4, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
         System.out.println("Schema: " + json_data);
         if (authenticated){
-            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/");
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/", "sensor");
         }
 
         aqi_counter++;
-        sendToAQIReadings();
+
+        if (aqi_counter == 5){
+            sendToAQIReadings();
+        }
+
 
 
         co = 0;
@@ -369,7 +428,7 @@ public class MainActivity extends AppCompatActivity
         String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp, longitude, latitude);
         System.out.println("Schema: " + json_data);
         if (authenticated){
-            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2");
+            sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2", "AQI");
         }
 
         aqi_counter = 0;
@@ -428,12 +487,12 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
-    private void sendDataToBigQuery(String jsonData, String timestamp, String bucket){
+    private void sendDataToBigQuery(String jsonData, String timestamp, String bucket, String type){
         FirebaseStorage storage = FirebaseStorage.getInstance(bucket);
         StorageReference storageRef = storage.getReference();
 
         // may fail due to spaces in file name
-        StorageReference dataRef = storageRef.child("data" + timestamp + ".json");
+        StorageReference dataRef = storageRef.child("data-" + timestamp + "-" + type + ".json");
 
 
         InputStream stream = new ByteArrayInputStream(jsonData.getBytes());
@@ -455,37 +514,38 @@ public class MainActivity extends AppCompatActivity
 
 
     public void onClick(View v) {
-        String loc = mTextView.getEditText().getText().toString();
 
-        drop.add(loc);
+        switch (v.getId()){
 
-        ArrayAdapter<String> newAdapter = new ArrayAdapter<String> (this, android.R.layout.simple_spinner_item, drop);
+            case R.id.button:
+                String loc = mTextView.getEditText().getText().toString();
 
-        newAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(newAdapter);
+                drop.add(loc);
 
-        mTextView.getEditText().setText("");
+                ArrayAdapter<String> newAdapter = new ArrayAdapter<String> (this, android.R.layout.simple_spinner_item, drop);
+
+                newAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinner.setAdapter(newAdapter);
+
+                mTextView.getEditText().setText("");
+                break;
+            case R.id.button2:
+                sendToSensorReadings();
+                break;
+
+            default:
+                break;
+        }
+
     }
 
-    private final LocationListener mLocationListener = new LocationListener() {
-        @Override
-        public void onLocationChanged(final Location location) {
-            longitude = Double.toString(location.getLongitude());
-            latitude = Double.toString(location.getLatitude());
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-        }
-    };
+    protected void createLocationRequest() {
+        locationRequest = LocationRequest.create();
+        locationRequest.setInterval(10000);
+        locationRequest.setFastestInterval(5000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        requestingLocationUpdates = true;
+    }
 
 
 }
