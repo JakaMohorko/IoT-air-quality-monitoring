@@ -332,7 +332,7 @@ public class MainActivity extends AppCompatActivity
 
         int index = 7;
 
-        for (int x = 1; x <= aqi_breakpoints_co.length; x++){
+        for (int x = 1; x < aqi_breakpoints_co.length; x++){
             if(co <= aqi_breakpoints_co[x]){
                 index = x;
                 break;
@@ -343,44 +343,47 @@ public class MainActivity extends AppCompatActivity
         float breakpointf_hi = aqi_breakpoints_co[index];
         int aqi_lo = aqi_values[index-1] + 1;
         int aqi_hi = aqi_values[index];
-
+        //System.out.println("AQI co values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + co);
         aqico += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
-
+        //System.out.println("AQI co: " + aqico);
         index = 7;
 
-        for (int x = 1; x <= aqi_breakpoints_dust.length; x++){
-            if(co <= aqi_breakpoints_dust[x]){
+        for (int x = 1; x < aqi_breakpoints_dust.length; x++){
+            if(dust <= aqi_breakpoints_dust[x]){
                 index = x;
                 break;
             }
         }
 
-        breakpointf_lo = aqi_breakpoints_co[index-1] + 0.1f;
-        breakpointf_hi = aqi_breakpoints_co[index];
+        breakpointf_lo = aqi_breakpoints_dust[index-1] + 0.1f;
+        breakpointf_hi = aqi_breakpoints_dust[index];
         aqi_lo = aqi_values[index-1] + 1;
         aqi_hi = aqi_values[index];
+        //System.out.println("AQI dust values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + dust);
 
-        aqidust += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        aqidust += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(dust*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        //System.out.println("AQI dust: " + aqidust);
 
         index = 7;
-        for (int x = 1; x <= aqi_breakpoints_no2.length; x++){
-            if(co <= aqi_breakpoints_no2[x]){
+        for (int x = 1; x < aqi_breakpoints_no2.length; x++){
+            if(no2 <= aqi_breakpoints_no2[x]){
                 index = x;
                 break;
             }
         }
 
-        int breakpoint_lo = aqi_breakpoints_no2[index-1] + 1;
-        int breakpoint_hi = aqi_breakpoints_no2[index];
+        breakpointf_lo = (float)(aqi_breakpoints_no2[index-1] + 1);
+        breakpointf_hi = (float)(aqi_breakpoints_no2[index]);
         aqi_lo = aqi_values[index-1] + 1;
         aqi_hi = aqi_values[index];
+        //System.out.println("AQI no2 values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + no2);
 
-        aqino2 += Math.round((aqi_hi - aqi_lo) / (breakpoint_hi-breakpoint_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpoint_lo) + aqi_lo);
-
+        aqino2 += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * (Math.round(no2) - breakpointf_lo) + aqi_lo);
+        //System.out.println("AQI no2: " + aqino2);
         sensor_counter = 0;
 
         String json_data = String.format(json_schema, co, no2, nh3, ch4, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
-        System.out.println("Schema: " + json_data);
+        System.out.println("Schema Readings: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source-1581353521/", "sensor");
         }
@@ -408,7 +411,7 @@ public class MainActivity extends AppCompatActivity
 
     private void sendToAQIReadings(){
         // Set json schema
-        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\", \"longitude\": %s,\"latitude\": %s}";
+        String json_schema = "{\"AQI\": %s,\"Location_tag\": \"%s\", \"AQIco\": %s,\"AQIno2\": %s,\"AQIdust\": %s,\"TIME\": \"%s\", \"longitude\": %s,\"latitude\": %s, \"AQIcategory\": \"%s\"}";
 
         // get timestamp
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
@@ -424,9 +427,16 @@ public class MainActivity extends AppCompatActivity
 
         int aqi = Integer.max(aqico, aqidust);
         aqi = Integer.max(aqi, aqino2);
+        String AQIcategory = "";
+        if (aqi <= 50) AQIcategory = "Good";
+        else if (aqi <= 100) AQIcategory = "Moderate";
+        else if (aqi <= 150) AQIcategory = "Unhealthy for Sensitive Groups";
+        else if (aqi <= 200) AQIcategory = "Unhealthy";
+        else if (aqi <= 300) AQIcategory = "Very Unhealthy";
+        else AQIcategory = "Hazardous";
 
-        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp, longitude, latitude);
-        System.out.println("Schema: " + json_data);
+        String json_data = String.format(json_schema, aqi, location_tag, aqico, aqino2, aqidust, timeStamp, longitude, latitude, AQIcategory);
+        System.out.println("Schema AQI: " + json_data);
         if (authenticated){
             sendDataToBigQuery(json_data, timeStamp, "gs://gassie-files-source2", "AQI");
         }
