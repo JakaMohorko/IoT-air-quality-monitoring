@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2016 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the 'License');
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an 'AS IS' BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+  <head>
+    <title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+      }
+    </style>
+    <script type="text/javascript">
+    // Client ID for OAuth 2.0 authorization against BigQuery.
+    let clientId = '***REMOVED***';
+    let scopes = 'https://www.googleapis.com/auth/bigquery';
+
+    // BigQuery settings. Replace these with your project, dataset and table names.
+    let gcpProjectId = 'gassie';
+    let bigQueryProjectId = 'gassie';
+    let datasetId = 'AQIreadings';
+    let tableName = 'readings';
+
+    // Limit the number of records that a query will return.    var recordLimit = 10000;
+    let recordLimit = 10000;
+    let jobCheckTimer;
+
+    let map;
+    let drawingManager;
+    let heatmap;
+	
+	let markers = []
+	
+	let icons = {
+          orange: {
+            url: 'img/orange.png'
+          },
+          purple: {
+            url: 'img/purple.png'
+          },
+          red: {
+            url: 'img/red.png'
+          },
+		  yellow: {
+            url: 'img/yellow.png'
+          },
+		  green: {
+            url: 'img/green.png'
+          },
+		  maroon: {
+            url: 'img/maroon.png'
+          },
+        };
+
+    // Check if the user is authorized.
+    function authorize(event) {
+      gapi.auth.authorize({client_id: clientId, scope: scopes, immediate: false}, handleAuthResult);
+      return false;
+    }
+
+    // If authorized, load BigQuery API
+    function handleAuthResult(authResult) {
+      if (authResult && !authResult.error) {
+        loadApi();
+        return;
+      }
+      console.error('Not authorized.')
+    }
+
+    // Load BigQuery client API and then initialize the map.
+    function loadApi(){
+      gapi.client.load('bigquery', 'v2').then(
+        () => initMap()
+      );
+    }
+
+    // Send a query to BigQuery using the Google Client API for JavaScript.
+    function sendQuery(queryString){
+      let request = gapi.client.bigquery.jobs.query({
+          'query': queryString,
+          'timeoutMs': 30000,
+          'datasetId': datasetId,
+          'projectId': gcpProjectId,
+          'useLegacySql':false
+      });
+      request.execute(response => checkJobStatus(response.jobReference.jobId));
+    }
+
+    // Poll a job to see if it has finished executing.
+    function checkJobStatus(jobId){
+      let request = gapi.client.bigquery.jobs.get({
+        'projectId': gcpProjectId,
+        'jobId': jobId
+      });
+      request.execute(response => {
+        if (response.status.errorResult){
+          // Handle any errors
+          console.log(response.status.error);
+          return;
+        }
+        if (response.status.state == 'DONE'){
+          // Get the results
+          clearTimeout(jobCheckTimer);
+          getQueryResults(jobId);
+          return;
+        }
+        // Not finished, check again in a moment
+        jobCheckTimer = setTimeout(checkJobStatus, 500, [jobId]);
+      });
+    }
+
+    // When a BigQuery job has completed, fetch the results.
+    function getQueryResults(jobId){
+      let request = gapi.client.bigquery.jobs.getQueryResults({
+        'projectId': gcpProjectId,
+        'jobId': jobId
+      });
+      request.execute(response => doHeatMap(response.result.rows))
+    }
+
+    // Map-related functions.
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat: 55.944324 , lng: -3.186896},
+        zoom: 12
+      });
+	  //when the map zoom changes, resize the icon based on the zoom level so the marker covers the same geographic area
+	  google.maps.event.addListener(map, 'zoom_changed', function() {
+
+		var zoom = map.getZoom();
+		var relativePixelSize =  zoom < 19 ? 50 - (19-zoom) * 7 : 50;
+		
+		//change the size of the icons
+		for (let i = 0; i < markers.length; i++){
+			let currentMarker = markers[i]
+
+			currentMarker.setIcon({
+				url: currentMarker.getIcon().url,
+				scaledSize: new google.maps.Size(relativePixelSize, relativePixelSize),
+				origin: new google.maps.Point(0,0)
+				}
+			);   
+		}
+		
+		
+
+		
+	  });
+      setUpDrawingTools();
+    }
+
+    // Add the DrawingManager and set up drawing event handlers.
+    function setUpDrawingTools(){
+      // Initialize drawing manager
+      drawingManager = new google.maps.drawing.DrawingManager({
+        drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+        drawingControl: true,
+        drawingControlOptions: {
+          position: google.maps.ControlPosition.TOP_LEFT,
+          drawingModes: [
+            google.maps.drawing.OverlayType.RECTANGLE
+          ]
+        },
+        circleOptions: {
+          fillOpacity: 0
+        },
+        polygonOptions: {
+          fillOpacity: 0
+        },
+        rectangleOptions: {
+          fillOpacity: 0
+        }
+      });
+      drawingManager.setMap(map);
+
+      // Handle the drawing events
+      drawingManager.addListener('rectanglecomplete', rectangle => rectangleQuery(rectangle.getBounds()));
+
+    }
+
+    // Query-related functions.
+
+    // Query locations by rectangular area.
+    function rectangleQuery(latLngBounds){
+      let queryString = rectangleSQL(latLngBounds.getNorthEast(), latLngBounds.getSouthWest());
+      sendQuery(queryString);
+    }
+
+    function rectangleSQL(ne, sw){
+      let queryString = ' SELECT a.latitude as latitude, a.longitude as longitude, a.date as date, b.AQI as AQI '
+      queryString += ' FROM ( SELECT latitude, longitude, MAX(date) as date '
+      queryString += ' FROM (SELECT round(latitude,4) as latitude, round(longitude,4) as longitude, MAX(TIME) as date'
+      queryString += ' FROM `' + bigQueryProjectId +'.' + datasetId + '.' + tableName + '`'
+      queryString += ' WHERE latitude > ' + sw.lat();
+      queryString += ' AND latitude < ' + ne.lat();
+      queryString += ' AND longitude > ' + sw.lng();
+      queryString += ' AND longitude < ' + ne.lng();
+      queryString += ' GROUP BY latitude, longitude) ';
+      queryString += ' GROUP BY latitude, longitude) a '
+      queryString += ' INNER JOIN AQIreadings.readings b ON a.date=b.TIME '
+      queryString += ' LIMIT ' + recordLimit;
+      console.log(queryString)
+      return queryString;
+    }
+
+    // Show query results as a Heatmap.
+    function doHeatMap(rows){
+	  for (var i = 0; i < markers.length; i++) {
+          markers[i].setMap(null);
+      }
+      markers = []
+      for (let i = 0; i < rows.length; i++) {
+          let f = rows[i].f;
+          let coords = { lat: parseFloat(f[0].v), lng: parseFloat(f[1].v) };
+          console.log(coords)
+          let latLng = new google.maps.LatLng(coords);
+		  let aqi = parseInt(f[3].v)
+		  let date = Date.parse(f[2].v)
+		  console.log(date)
+		  
+		  let iconType = (aqi <= 50) ? 'green' : ((aqi <= 100) ? 'yellow' : ((aqi <= 150) ? 'orange' : ((aqi <= 200) ? 'red' : ((aqi <= 300) ? 'purple' : 'maroon')))) 
+		  var zoom = map.getZoom();
+	      var relativePixelSize =  zoom < 19 ? 50 - (19-zoom) * 7 : 50;
+		  
+          marker = new google.maps.Marker({
+              position: latLng,
+			  icon: {url: icons[iconType].url, origin: new google.maps.Point(0,0), scaledSize: new google.maps.Size(relativePixelSize, relativePixelSize)},
+			  map: map,
+              title:"AQI: " + aqi + "Date: " + date
+          });
+		  markers.push(marker)
+      }
+    }
+	
+	
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?libraries=visualization,drawing&key=AIzaSyBEITqPWxnER-kRC0ir3T4zs8h0pMXGFtA"
+    async defer></script>
+    <script src="https://apis.google.com/js/client.js"></script>
+    <script type="text/javascript">
+      gapi.load('client:auth', authorize);
+    </script>
+  </body>
+</html>
