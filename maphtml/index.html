@@ -47,6 +47,7 @@ limitations under the License.
     let map;
     let drawingManager;
     let heatmap;
+	let rect;
 	
 	let markers = []
 	
@@ -194,14 +195,21 @@ limitations under the License.
       drawingManager.setMap(map);
 
       // Handle the drawing events
-      drawingManager.addListener('rectanglecomplete', rectangle => rectangleQuery(rectangle.getBounds()));
+      drawingManager.addListener('rectanglecomplete', rectangle => rectangleQuery(rectangle));
 
     }
 
     // Query-related functions.
 
     // Query locations by rectangular area.
-    function rectangleQuery(latLngBounds){
+    function rectangleQuery(rectangle){
+	
+	  if (rect != null){
+		rect.setMap(null)
+	  }
+	  
+	  rect = rectangle
+	  var latLngBounds = rect.getBounds()
       let queryString = rectangleSQL(latLngBounds.getNorthEast(), latLngBounds.getSouthWest());
       sendQuery(queryString);
     }
