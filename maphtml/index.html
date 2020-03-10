@@ -243,18 +243,19 @@ limitations under the License.
           console.log(coords)
           let latLng = new google.maps.LatLng(coords);
 		  let aqi = parseInt(f[3].v)
-		  let date = Date.parse(f[2].v)
-		  console.log(date)
+
+		  console.log(f[2].v)
 		  
 		  let iconType = (aqi <= 50) ? 'green' : ((aqi <= 100) ? 'yellow' : ((aqi <= 150) ? 'orange' : ((aqi <= 200) ? 'red' : ((aqi <= 300) ? 'purple' : 'maroon')))) 
 		  var zoom = map.getZoom();
 	      var relativePixelSize =  zoom < 19 ? 50 - (19-zoom) * 7 : 50;
+		  var date = f[2].v.split("T")
 		  
           marker = new google.maps.Marker({
               position: latLng,
 			  icon: {url: icons[iconType].url, origin: new google.maps.Point(0,0), scaledSize: new google.maps.Size(relativePixelSize, relativePixelSize)},
 			  map: map,
-              title:"AQI: " + aqi + "Date: " + date
+              title:"AQI: " + aqi + " Date: " + date[0] + ", " + date[1]
           });
 		  markers.push(marker)
       }
