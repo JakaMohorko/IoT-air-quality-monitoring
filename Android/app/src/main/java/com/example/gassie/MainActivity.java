@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 
 import android.os.Bundle;
@@ -61,6 +62,17 @@ import androidx.annotation.NonNull;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.utils.ColorTemplate;
+
+
 public class MainActivity extends AppCompatActivity
         implements AdapterView.OnClickListener {
 
@@ -75,8 +87,9 @@ public class MainActivity extends AppCompatActivity
     private FirebaseAuth mAuth;
     private ArrayList<String> drop = new ArrayList<>();
     private Button mClickButton;
-    private Button mClickButton2;
     private Spinner spinner;
+    private Spinner spinner1;
+    private Spinner spinner2;
     private TextInputLayout mTextView;
     private Boolean authenticated = false;
 
@@ -97,6 +110,7 @@ public class MainActivity extends AppCompatActivity
 
     private int sensor_counter = 0;
     private int aqi_counter = 0;
+    private int frequency = 18;
 
     private float[] aqi_breakpoints_co = new float[]{-0.1f, 4.4f, 9.4f, 12.4f, 15.4f, 30.4f, 40.4f, 50.4f};
     private int[] aqi_breakpoints_no2 = new int[]{-1, 53, 100, 360, 649, 1249, 1649, 2049};
@@ -112,14 +126,18 @@ public class MainActivity extends AppCompatActivity
     private float longitude = 0.0f;
     private float latitude = 0.0f;
 
+    private LineChart mChart;
+    private String description = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         mClickButton = findViewById(R.id.button);
-        mClickButton2 = findViewById(R.id.button2);
         spinner = findViewById(R.id.spinner);
+        spinner1 = findViewById(R.id.spinner3);
+        spinner2 = findViewById(R.id.spinner2);
         mTextView = findViewById(R.id.textInputLayout);
 
         context = getApplicationContext();
@@ -174,7 +192,40 @@ public class MainActivity extends AppCompatActivity
             drop.add(z);
         }
 
+        spinner1.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+                if (spinner1.getSelectedItem().toString().equals("Stationary mode")){
+                    frequency = 18;
+                    System.out.println("Frequency set to 18");
+                }
+                else{
+                    frequency = 3;
+                    System.out.println("Frequency set to 3");
+                }
+                sensor_counter = 0;
+                aqi_counter = 0;
+            }
 
+            @Override
+            public void onNothingSelected(AdapterView<?> parentView) {
+                frequency = 18;
+            }
+
+        });
+
+        spinner2.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                description = spinner2.getSelectedItem().toString();
+                createGraph();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             this.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
@@ -211,7 +262,64 @@ public class MainActivity extends AppCompatActivity
 
 
         mClickButton.setOnClickListener(this);
-        mClickButton2.setOnClickListener(this);
+
+        mChart = findViewById(R.id.chart1);
+
+        // enable description text
+        mChart.getDescription().setEnabled(true);
+        mChart.getDescription().setText("Not tracking");
+
+        // enable touch gestures
+        mChart.setTouchEnabled(true);
+
+        // enable scaling and dragging
+        mChart.setDragEnabled(false);
+        mChart.setScaleEnabled(false);
+        mChart.setDrawGridBackground(false);
+
+        // if disabled, scaling can be done on x- and y-axis separately
+        mChart.setPinchZoom(false);
+
+        // set an alternative background color
+        mChart.setBackgroundColor(Color.WHITE);
+
+        LineData data = new LineData();
+        data.setValueTextColor(Color.WHITE);
+
+        // add empty data
+        mChart.setData(data);
+
+
+        // get the legend (only possible after setting data)
+        Legend l = mChart.getLegend();
+
+        // modify the legend ...
+        l.setForm(Legend.LegendForm.LINE);
+        l.setTextColor(Color.BLACK);
+
+        XAxis xl = mChart.getXAxis();
+        xl.setTextColor(Color.WHITE);
+        xl.setDrawGridLines(true);
+        xl.setAvoidFirstLastClipping(true);
+        xl.setEnabled(true);
+        xl.setPosition(XAxis.XAxisPosition.BOTTOM);
+
+        YAxis leftAxis = mChart.getAxisLeft();
+        leftAxis.setTextColor(Color.BLACK);
+        leftAxis.setDrawGridLines(false);
+        leftAxis.setAxisMaximum(50f);
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setDrawGridLines(true);
+
+        YAxis rightAxis = mChart.getAxisRight();
+        rightAxis.setEnabled(false);
+
+        mChart.getAxisLeft().setDrawGridLines(false);
+        mChart.getXAxis().setDrawGridLines(false);
+        mChart.setDrawBorders(false);
+
+        mChart.invalidate();
+
     }
     @Override
     public void onStart() {
@@ -302,9 +410,25 @@ public class MainActivity extends AppCompatActivity
 
         sensor_counter++;
 
-        if (sensor_counter == 12){
+        if (sensor_counter == frequency){
+            sensor_counter = 0;
             sendToSensorReadings();
         }
+        switch (description){
+            case "CO": addEntry(Float.parseFloat(values[1])); break;
+            case "NO2": addEntry(Float.parseFloat(values[3])); break;
+            case "NH3": addEntry(Float.parseFloat(values[5])); break;
+            case "CH4": addEntry(Float.parseFloat(values[7])); break;
+            case "H2": addEntry(Float.parseFloat(values[9])); break;
+            case "Ethanol": addEntry(Float.parseFloat(values[11])); break;
+            case "Propane": addEntry(Float.parseFloat(values[13])); break;
+            case "Dust": addEntry(Float.parseFloat(values[15])); break;
+            case "eCO2": addEntry(Float.parseFloat(values[17])); break;
+            case "TVOC": addEntry(Float.parseFloat(values[19])); break;
+            default:
+        }
+
+
     }
 
     private void sendToSensorReadings(){
@@ -319,16 +443,16 @@ public class MainActivity extends AppCompatActivity
         String location_tag = spinner.getSelectedItem().toString();
         location_tag = location_tag.replaceAll(" ", "-");
 
-        co /= 12; co = Math.round(co * 100.0f) / 100.0f;
-        no2 /= 12; no2 *= 1000; no2 = Math.round(no2 * 100.0f) / 100.0f;
-        nh3 /= 12; nh3 = Math.round(nh3 * 100.0f) / 100.0f;
-        ch4 /= 12; ch4 = Math.round(ch4 * 100.0f) / 100.0f;
-        h2 /= 12; h2 = Math.round(h2 * 100.0f) / 100.0f;
-        ethanol /= 12; ethanol = Math.round(ethanol * 100.0f) / 100.0f;
-        propane /= 12; propane = Math.round(propane * 100.0f) / 100.0f;
-        dust /= 12; dust = Math.round(dust * 100.0f) / 100.0f;
-        eco2 /= 12;
-        tvoc /= 12;
+        co /= frequency; co = Math.round(co * 100.0f) / 100.0f;
+        no2 /= frequency; no2 *= 1000; no2 = Math.round(no2 * 100.0f) / 100.0f;
+        nh3 /= frequency; nh3 = Math.round(nh3 * 100.0f) / 100.0f;
+        ch4 /= frequency; ch4 = Math.round(ch4 * 100.0f) / 100.0f;
+        h2 /= frequency; h2 = Math.round(h2 * 100.0f) / 100.0f;
+        ethanol /= frequency; ethanol = Math.round(ethanol * 100.0f) / 100.0f;
+        propane /= frequency; propane = Math.round(propane * 100.0f) / 100.0f;
+        dust /= frequency; dust = Math.round(dust * 100.0f) / 100.0f;
+        eco2 /= frequency;
+        tvoc /= frequency;
 
         int index = 7;
 
@@ -339,12 +463,15 @@ public class MainActivity extends AppCompatActivity
             }
         }
 
+        int tempaqi = 0;
         float breakpointf_lo = aqi_breakpoints_co[index-1] + 0.1f;
         float breakpointf_hi = aqi_breakpoints_co[index];
         int aqi_lo = aqi_values[index-1] + 1;
         int aqi_hi = aqi_values[index];
         //System.out.println("AQI co values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + co);
-        aqico += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        tempaqi = Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(co*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        if(description.equals("AQI: CO")) addEntry(tempaqi);
+        aqico += tempaqi;
         //System.out.println("AQI co: " + aqico);
         index = 7;
 
@@ -361,7 +488,9 @@ public class MainActivity extends AppCompatActivity
         aqi_hi = aqi_values[index];
         //System.out.println("AQI dust values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + dust);
 
-        aqidust += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(dust*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        tempaqi = Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * ((Math.round(dust*10.0f) / 10.0f) - breakpointf_lo) + aqi_lo);
+        if(description.equals("AQI: Dust")) addEntry(tempaqi);
+        aqidust += tempaqi;
         //System.out.println("AQI dust: " + aqidust);
 
         index = 7;
@@ -378,9 +507,11 @@ public class MainActivity extends AppCompatActivity
         aqi_hi = aqi_values[index];
         //System.out.println("AQI no2 values: " + breakpointf_lo + " " + breakpointf_hi + " " + aqi_lo + " " + aqi_hi + " " + no2);
 
-        aqino2 += Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * (Math.round(no2) - breakpointf_lo) + aqi_lo);
+        tempaqi = Math.round((aqi_hi - aqi_lo) / (breakpointf_hi-breakpointf_lo) * (Math.round(no2) - breakpointf_lo) + aqi_lo);
+        if(description.equals("AQI: NO2")) addEntry(tempaqi);
+        aqino2 += tempaqi;
         //System.out.println("AQI no2: " + aqino2);
-        sensor_counter = 0;
+
 
         String json_data = String.format(json_schema, co, no2, nh3, ch4, h2, ethanol, propane, dust, eco2, tvoc, timeStamp, location_tag);
         System.out.println("Schema Readings: " + json_data);
@@ -390,7 +521,8 @@ public class MainActivity extends AppCompatActivity
 
         aqi_counter++;
 
-        if (aqi_counter == 5){
+        if (aqi_counter == 3){
+            aqi_counter = 0;
             sendToAQIReadings();
         }
 
@@ -421,9 +553,9 @@ public class MainActivity extends AppCompatActivity
         String location_tag = spinner.getSelectedItem().toString();
         location_tag = location_tag.replaceAll(" ", "-");
 
-        aqico /= 5;
-        aqidust /= 5;
-        aqino2 /= 5;
+        aqico /= 3;
+        aqidust /= 3;
+        aqino2 /= 3;
 
         int aqi = Integer.max(aqico, aqidust);
         aqi = Integer.max(aqi, aqino2);
@@ -529,7 +661,7 @@ public class MainActivity extends AppCompatActivity
 
             case R.id.button:
                 String loc = mTextView.getEditText().getText().toString();
-
+                mTextView.clearFocus();
                 drop.add(loc);
 
                 ArrayAdapter<String> newAdapter = new ArrayAdapter<String> (this, android.R.layout.simple_spinner_item, drop);
@@ -539,9 +671,6 @@ public class MainActivity extends AppCompatActivity
 
                 mTextView.getEditText().setText("");
                 break;
-            case R.id.button2:
-                sendToSensorReadings();
-                break;
 
             default:
                 break;
@@ -549,12 +678,92 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+
     protected void createLocationRequest() {
         locationRequest = LocationRequest.create();
         locationRequest.setInterval(10000);
         locationRequest.setFastestInterval(5000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         requestingLocationUpdates = true;
+    }
+
+    private void addEntry(float mValue) {
+
+        LineData data = mChart.getData();
+
+        if (data != null) {
+
+            ILineDataSet set = data.getDataSetByIndex(0);
+            // set.addEntry(...); // can be called as well
+
+            if (set == null) {
+                set = createSet();
+                data.addDataSet(set);
+            }
+
+            data.addEntry(new Entry(set.getEntryCount(), mValue), 0);
+            data.notifyDataChanged();
+
+            // let the chart know it's data has changed
+            mChart.notifyDataSetChanged();
+
+            // limit the number of visible entries
+            mChart.setVisibleXRangeMaximum(10);
+            // mChart.setVisibleYRange(30, AxisDependency.LEFT);
+
+            // move to the latest entry
+            mChart.moveViewToX(data.getEntryCount());
+
+        }
+    }
+
+    private LineDataSet createSet() {
+
+        String unit = "";
+        String[] isAQI = description.split(" ");
+
+        if (description.equals("TVOC")) unit = " (ppb)";
+        else if (description.equals("Dust")) unit = " (μg/m3)";
+        else if (isAQI.equals("AQI:")) unit = "";
+        else unit = " (ppm)";
+
+        LineDataSet set = new LineDataSet(null, description + unit);
+        set.setAxisDependency(YAxis.AxisDependency.LEFT);
+        set.setLineWidth(3f);
+        set.setColor(Color.MAGENTA);
+        set.setHighlightEnabled(false);
+        set.setDrawValues(true);
+        set.setDrawCircles(false);
+        set.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        set.setCubicIntensity(0.2f);
+        return set;
+    }
+
+    private void createGraph() {
+        if (description.equals("None")) mChart.getDescription().setText("Not tracking");
+        else mChart.getDescription().setText(description + " Values");
+        LineData data = new LineData();
+        data.setValueTextColor(Color.WHITE);
+
+        // add empty data
+        mChart.setData(data);
+
+        if (!description.equals("None")){
+            YAxis leftAxis = mChart.getAxisLeft();
+            String[] isAqi = description.split(" ");
+
+            if (description.equals("Propane")) leftAxis.setAxisMaximum(5000f);
+            else if (description.equals("eCO2")) leftAxis.setAxisMaximum(800f);
+            else if (description.equals("Dust")) leftAxis.setAxisMaximum(300f);
+            else if (isAqi[0].equals("AQI:")) leftAxis.setAxisMaximum(600f);
+            else {
+                leftAxis.setAxisMaximum(5f);
+            }
+        }
+
+
+
+        mChart.invalidate();
     }
 
 

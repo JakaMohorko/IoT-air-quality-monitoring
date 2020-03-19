@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">gassie</string>
+    <string-array name="spinner1">
+        <item>Stationary mode</item>
+        <item>Moving mode</item>
+    </string-array>
+    <string-array name="spinner2">
+        <item>None</item>
+        <item>CO</item>
+        <item>NO2</item>
+        <item>NH3</item>
+        <item>CH4</item>
+        <item>Ethanol</item>
+        <item>Propane</item>
+        <item>Dust</item>
+        <item>eCO2</item>
+        <item>TVOC</item>
+        <item>AQI: NO2</item>
+        <item>AQI: CO</item>
+        <item>AQI: Dust</item>
+    </string-array>
 </resources>
