@@ -633,7 +633,7 @@ public class MainActivity extends AppCompatActivity
         FirebaseStorage storage = FirebaseStorage.getInstance(bucket);
         StorageReference storageRef = storage.getReference();
 
-        // may fail due to spaces in file name
+        // may fail due to spaces in file name, so remove spaces
         StorageReference dataRef = storageRef.child("data-" + timestamp + "-" + type + ".json");
 
 
