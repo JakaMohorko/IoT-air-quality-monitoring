@@ -8,7 +8,7 @@ We make use of the Grove Multichannel Gas Sensor, the Adafruit SGP30 Gas Sensor 
 
 ## Android App
 
-The Android App serves as a bridge between the Google Cloud and the development board. Data from the board is sent via Bluetooth, using the android-bluetooth-serial library by harry1453. The app calculates the AQI values, displays a graph of the current readings and sends the time- and location-tagged data to Google Cloud through Firebase, requiring user authentication.
+The Android App serves as a bridge between the Google Cloud and the development board. Data from the board is sent via Bluetooth, using the android-bluetooth-serial library by harry1453 (https://github.com/harry1453/android-bluetooth-serial). The app calculates the AQI values, displays a graph of the current readings and sends the time- and location-tagged data to Google Cloud through Firebase, requiring user authentication.
 
 ## Visualization
 
