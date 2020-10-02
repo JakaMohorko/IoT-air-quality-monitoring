@@ -143,7 +143,7 @@ public class MainActivity extends AppCompatActivity
         context = getApplicationContext();
 
         gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken("***REMOVED***")
+                .requestIdToken("")
                 .requestEmail()
                 .build();
 
