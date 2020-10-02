@@ -20,4 +20,4 @@ To alert users we have created a email-notification system allowingusers to subs
 
 ## Project Report
 
-The full description and report on the project is available in the report.pdf file.
+The full description and report on the project is available in the IoTSSC_Report.pdf file.
