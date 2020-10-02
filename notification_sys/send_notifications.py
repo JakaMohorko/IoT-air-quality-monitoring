@@ -8,16 +8,16 @@ from google.cloud import bigquery
 
 def alt_send_email(email_address, aqiCat):
 
-    smtp_servers = ["smtp.gmail.com", "smtp.live.com",]
-    email_send_from = ['***REMOVED***','***REMOVED***', "gassie_edinburgh@outlook.com"]
+    smtp_servers = "smtp.live.com"
+    email_send_from = "gassie_edinburgh@outlook.com"
     
     # from and to
-    fromaddr = email_send_from[2]
+    fromaddr = email_send_from
     toaddrs = email_address
     
     # credentials
-    username = email_send_from[2]
-    ***REMOVED***
+    username = email_send_from
+    password = "password"
 
     context = ssl.create_default_context()
     
@@ -32,7 +32,7 @@ def alt_send_email(email_address, aqiCat):
         "The air quality in has been recorded as " + aqiCat 
     ])
 
-    server = smtplib.SMTP(smtp_servers[1], 587)
+    server = smtplib.SMTP(email_send_from, 587)
     server.ehlo()
     server.starttls()
     server.ehlo()
@@ -40,38 +40,6 @@ def alt_send_email(email_address, aqiCat):
     server.sendmail(fromaddr, toaddrs, msg)
     server.quit()
 
-    
-    # with smtplib.SMTP_SSL(smtp_servers[1], 465, context=context) as server:
-    #    server.login(username, password)
-    #    server.sendmail(fromaddr, toaddrs, msg)
-
-
-def send_email(email_address, aqiCat):
-    msg = "\r\n".join([
-        "From: ***REMOVED***",
-        "To: " + email_address,
-        "Subject: Air Quality alert",
-        "",
-        "Hello " + email_address,
-        ""
-        "The air quality in has been recorded as " + aqiCat 
-    ])
-
-    # from and to
-    fromaddr = '***REMOVED***'
-    toaddrs = email_address
-    
-    # credentials
-    username = '***REMOVED***'
-    password = input("Enter password: ")
-
-    server = smtplib.SMTP('smtp.gmail.com:587')
-    server.ehlo()
-    server.starttls()
-    server.ehlo()
-    server.login(username, password)
-    server.sendmail(fromaddr, toaddrs, msg)
-    server.quit()
 
 def test_extract_schema(client): 
     project = 'gassie'
