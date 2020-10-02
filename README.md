@@ -12,7 +12,7 @@ The Android App serves as a bridge between the Google Cloud and the development 
 
 ## Visualization
 
-Data in Google Cloud is stored in BigQuery and visualized in DataStudio, available at https://datastudio.google.com/reporting/7093ff73-fe37-4056-9988-c3f4ff4721d2 . We use Google Maps to visualize the data on an interactive map, which currently does not allow non-developer access due to Google privacy restrictions.
+Data in Google Cloud is stored in BigQuery and visualized in DataStudio. We use Google Maps to visualize the data on an interactive map, which currently does not allow non-developer access due to Google privacy restrictions.
 
 ## Notification System
 
