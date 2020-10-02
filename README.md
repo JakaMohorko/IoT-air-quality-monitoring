@@ -1,4 +1,4 @@
-# IoTSSC
+# IoT Air Quality Monitoring solution
 
 University project IoT Air Quality Monitoring solution, utilising particle and gas sensors connected to a FRDM-K64F board. The sensor data is transferred to an Android device running our app via bluetooth, uploaded to Google BigQuery through Firebase and visualized in Google DataStudio and on Google Maps. A subscription service designed to notify users of bad air quality is available.
 
